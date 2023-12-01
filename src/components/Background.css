@@ -1,8 +1,6 @@
+
 .cls-1 {
   fill: none;
-}
-
-.cls-1, .cls-2 {
   stroke: #d4af37;
   stroke-miterlimit: 10;
 }
@@ -13,4 +11,8 @@
 
 .cls-3 {
   fill: #31a39d;
+}
+
+.cls-5 {
+  fill: url(#Palmes2);
 }
