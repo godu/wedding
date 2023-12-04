@@ -21,18 +21,26 @@ const { title } = Astro.props;
 	</body>
 </html>
 <style is:global>
+	@font-face {
+		font-family: "Odalisque NF";
+		font-style: normal;
+		font-weight: 400;
+		src:
+			local("Odalisque NF"),
+			url("https://fonts.cdnfonts.com/s/29279/OdalisqueNF.woff") format("woff");
+	}
+
 	:root {
-		margin:0;
-		padding:0;
-		height:100%;
+		margin: 0;
+		padding: 0;
+		height: 100%;
 		width: 100%;
 	}
 	body {
-		margin:0;
-		padding:0;
-		height:100%;
+		margin: 0;
+		padding: 0;
+		height: 100%;
 		width: 100%;
 		overflow: hidden;
 	}
-	
 </style>

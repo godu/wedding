@@ -1,0 +1,42 @@
+
+.cls-1, .cls-2, .cls-3 {
+  letter-spacing: 0em;
+}
+
+.cls-4 {
+  stroke-width: 5px;
+}
+
+.cls-4, .cls-5 {
+  fill: #fff;
+  stroke: #d4af37;
+  stroke-miterlimit: 10;
+}
+
+.cls-6, .cls-3 {
+  font-size: 40px;
+}
+
+.cls-7, .cls-8, .cls-3 {
+  fill: #264b56;
+}
+
+.cls-7, .cls-3 {
+  font-family: OdalisqueNF, 'Odalisque NF';
+}
+
+.cls-2 {
+  font-size: 20px;
+}
+
+.cls-5 {
+  stroke-width: 10px;
+}
+
+.cls-9 {
+  letter-spacing: -.03em;
+}
+
+.cls-10 {
+  letter-spacing: -.04em;
+}
