@@ -9,6 +9,9 @@ on:
     branches:
       - master
 
+concurrency:
+  group: ${{ github.workflow }}
+
 jobs:
   Deployment:
     runs-on: ubuntu-latest
