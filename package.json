@@ -9,6 +9,9 @@
     "preview": "astro preview",
     "astro": "astro"
   },
+  "workspaces": [
+    "infrastructure"
+  ],
   "dependencies": {
     "@astrojs/check": "^0.3.1",
     "@astrojs/react": "^3.0.6",

@@ -1,0 +1,4 @@
+encryptionsalt: v1:mPwH6k5yIFQ=:v1:x+mpK+dlgcUMsnKK:NEpsj/ygKLeyOuYSlHDS3uCl+FhtBw==
+config:
+  aws-native:region: eu-west-1
+  github:owner: godu
