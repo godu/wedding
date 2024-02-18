@@ -66,7 +66,7 @@ const weddingGithubActionAssumeRolePolicy = new aws.iam.RolePolicy('WeddingGithu
 			},
 			{
 				Effect: 'Allow',
-				Action: ['cloudformation:*', 'iam:*', 'lambda:*', 's3:*'],
+				Action: ['cloudformation:*', 'iam:*', 'lambda:*', 's3:*', 'cloudfront:*'],
 				Resource: ['*'],
 			},
 		],
@@ -76,70 +76,70 @@ const weddingGithubActionAssumeRolePolicy = new aws.iam.RolePolicy('WeddingGithu
 export const weddingGithubActionAssumeRoleArn = weddingGithubActionAssumeRole.arn
 
 
-// const weddingBucket = new awsnative.s3.Bucket('wedding', {tags});
+const weddingBucket = new awsnative.s3.Bucket('wedding', {tags});
 
-// const weddingS3BucketFolder = new syncedFolder.S3BucketFolder('WeddingS3BucketFolder', {
-// 	bucketName: weddingBucket.id,
-// 	path: './www',
-// 	managedObjects: false,
-// 	acl: 'private',
-// });
+const weddingS3BucketFolder = new syncedFolder.S3BucketFolder('WeddingS3BucketFolder', {
+	bucketName: weddingBucket.id,
+	path: '../dist',
+	managedObjects: false,
+	acl: 'private',
+});
 
-// const weddingOriginAccessControl = new awsnative.cloudfront.OriginAccessControl('WeddingOriginAccessControl', {
-// 	originAccessControlConfig: {
-// 		name: 'wedding-origin-access-control',
-// 		originAccessControlOriginType: 's3',
-// 		signingBehavior: 'always',
-// 		signingProtocol: 'sigv4',
-// 	},
-// });
+const weddingOriginAccessControl = new awsnative.cloudfront.OriginAccessControl('WeddingOriginAccessControl', {
+	originAccessControlConfig: {
+		name: 'wedding-origin-access-control',
+		originAccessControlOriginType: 's3',
+		signingBehavior: 'always',
+		signingProtocol: 'sigv4',
+	},
+});
 
-// const CACHING_OPTIMIZED = '658327ea-f89d-4fab-a63d-7e88639e58f6';
+const CACHING_OPTIMIZED = '658327ea-f89d-4fab-a63d-7e88639e58f6';
 
-// const weddingDistribution = new awsnative.cloudfront.Distribution('WeddingDistribution', {
-// 	distributionConfig: {
-// 		enabled: true,
-// 		priceClass: 'PriceClass_100',
-// 		httpVersion: 'http2and3',
-// 		defaultRootObject: 'index.html',
-// 		defaultCacheBehavior: {
-// 			targetOriginId: 'wedding-bucket',
-// 			compress: true,
-// 			viewerProtocolPolicy: 'redirect-to-https',
-// 			allowedMethods: [
-// 				'GET',
-// 				'HEAD',
-// 				'OPTIONS',
-// 			],
-// 			cachePolicyId: CACHING_OPTIMIZED,
-// 		},
-// 		origins: [{
-// 			id: 'wedding-bucket',
-// 			domainName: weddingBucket.regionalDomainName,
-// 			originAccessControlId: weddingOriginAccessControl.id,
-// 			s3OriginConfig: {},
-// 		}],
-// 	},
-// });
+const weddingDistribution = new awsnative.cloudfront.Distribution('WeddingDistribution', {
+	distributionConfig: {
+		enabled: true,
+		priceClass: 'PriceClass_100',
+		httpVersion: 'http2and3',
+		defaultRootObject: 'index.html',
+		defaultCacheBehavior: {
+			targetOriginId: 'wedding-bucket',
+			compress: true,
+			viewerProtocolPolicy: 'redirect-to-https',
+			allowedMethods: [
+				'GET',
+				'HEAD',
+				'OPTIONS',
+			],
+			cachePolicyId: CACHING_OPTIMIZED,
+		},
+		origins: [{
+			id: 'wedding-bucket',
+			domainName: weddingBucket.regionalDomainName,
+			originAccessControlId: weddingOriginAccessControl.id,
+			s3OriginConfig: {},
+		}],
+	},
+});
 
-// const weddingBucketPolicy = new awsnative.s3.BucketPolicy('WeddingBucketPolicy', {
-// 	bucket: weddingBucket.id,
-// 	policyDocument: {
-// 		Version: '2008-10-17',
-// 		Statement: [
-// 			{
-// 				Effect: 'Allow',
-// 				Principal: {
-// 					Service: 'cloudfront.amazonaws.com',
-// 				},
-// 				Action: 's3:GetObject',
-// 				Resource: pulumi.interpolate`${weddingBucket.arn}/*`,
-// 				Condition: {
-// 					StringEquals: {
-// 						'AWS:SourceArn': pulumi.interpolate`arn:aws:cloudfront::${accountId}:distribution/${weddingDistribution.id}`,
-// 					},
-// 				},
-// 			},
-// 		],
-// 	},
-// });
+const weddingBucketPolicy = new awsnative.s3.BucketPolicy('WeddingBucketPolicy', {
+	bucket: weddingBucket.id,
+	policyDocument: {
+		Version: '2008-10-17',
+		Statement: [
+			{
+				Effect: 'Allow',
+				Principal: {
+					Service: 'cloudfront.amazonaws.com',
+				},
+				Action: 's3:GetObject',
+				Resource: pulumi.interpolate`${weddingBucket.arn}/*`,
+				Condition: {
+					StringEquals: {
+						'AWS:SourceArn': pulumi.interpolate`arn:aws:cloudfront::${accountId}:distribution/${weddingDistribution.id}`,
+					},
+				},
+			},
+		],
+	},
+});
