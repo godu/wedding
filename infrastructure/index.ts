@@ -51,7 +51,7 @@ const weddingGithubActionAssumeRole = new aws.iam.Role(
 const weddingPulumiStateBucket = new awsnative.s3.Bucket('wedding-pulumi-state-bucket', { tags }, { protect: true });
 export const weddingPulumiStateBucketName = weddingPulumiStateBucket.bucketName;
 
-const weddingGithubActionAssumeRolePolicy = new aws.iam.RolePolicy('WeddingGithubActionAssumeRolePolicy', {
+new aws.iam.RolePolicy('WeddingGithubActionAssumeRolePolicy', {
 	role: weddingGithubActionAssumeRole.id,
 	policy: {
 		Version: '2012-10-17',
@@ -78,7 +78,7 @@ export const weddingGithubActionAssumeRoleArn = weddingGithubActionAssumeRole.ar
 
 const weddingBucket = new awsnative.s3.Bucket('wedding', {tags});
 
-const weddingS3BucketFolder = new syncedFolder.S3BucketFolder('WeddingS3BucketFolder', {
+new syncedFolder.S3BucketFolder('WeddingS3BucketFolder', {
 	bucketName: weddingBucket.id,
 	path: '../dist',
 	managedObjects: false,
@@ -122,7 +122,7 @@ const weddingDistribution = new awsnative.cloudfront.Distribution('WeddingDistri
 	},
 });
 
-const weddingBucketPolicy = new awsnative.s3.BucketPolicy('WeddingBucketPolicy', {
+new awsnative.s3.BucketPolicy('WeddingBucketPolicy', {
 	bucket: weddingBucket.id,
 	policyDocument: {
 		Version: '2008-10-17',
