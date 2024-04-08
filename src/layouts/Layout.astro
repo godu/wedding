@@ -21,15 +21,6 @@ const { title } = Astro.props;
 	</body>
 </html>
 <style is:global>
-	@font-face {
-		font-family: "Odalisque NF";
-		font-style: normal;
-		font-weight: 400;
-		src:
-			local("Odalisque NF"),
-			url("https://fonts.cdnfonts.com/s/29279/OdalisqueNF.woff") format("woff");
-	}
-
 	:root {
 		margin: 0;
 		padding: 0;
@@ -47,5 +38,40 @@ const { title } = Astro.props;
 			url("palme@4x.png") 4x
 		);
 		background-position: center;
+	}
+
+	@font-face {
+	font-family: 'Park Lane NF';
+	src: url('/fonts/Park Lane NF.ttf');
+}
+
+.text-parkLaneNF {
+	font-family: 'Park Lane NF', cursive;
+}
+
+@font-face {
+	font-family: 'Art Vernagrayin Unicode';
+	src: url('/fonts/ArtVernagrayinU.ttf');
+}
+
+.text-ArtVernagrayinUnicode {
+	font-family: 'Art Vernagrayin Unicode', cursive;
+}
+
+@font-face {
+	font-family: 'SHK Dzeragir';
+	src: url('/fonts/SHK_Dzeragir.otf') format("opentype");
+}
+
+.text-SHKDzeragir {
+	font-family: 'SHK Dzeragir', cursive;
+}
+
+	.border-gold {
+		border-color: #d4af37;
+	}
+
+	.text-canard {
+		color: #264b56
 	}
 </style>
