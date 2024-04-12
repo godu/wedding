@@ -9,7 +9,10 @@
 			"recommended": true
 		}
 	},
+	"files": {
+		"ignore": ["dist"]
+	},
 	"javascript": {
-    "globals": ["Astro"]
-  }
+		"globals": ["Astro"]
+	}
 }
