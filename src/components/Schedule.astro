@@ -1,22 +1,84 @@
 ---
+import { getLangFromUrl, type Language } from "../i18n/utils";
+import Title from "./Title.astro";
 
+export type Schedule = {
+  title: string;
+  firstDay: string;
+  firstHour: string;
+  secondHour: string;
+  thirdHour: string;
+  secondDay: string;
+  forthHour: string;
+  ceremony: string;
+  cocktail: string;
+  reception: string;
+  breakfast: string;
+};
+
+export const Locales: Record<Language, Schedule> = {
+  en: {
+    title: "Schedule",
+    firstDay: "18 May",
+    firstHour: "17 p.m.",
+    secondHour: "18 p.m.",
+    thirdHour: "20 p.m.",
+    secondDay: "19 May",
+    forthHour: "9 a.m.",
+    ceremony: "Ceremony",
+    cocktail: "Cocktail",
+    reception: "Reception",
+    breakfast: "Breakfast",
+  },
+  fr: {
+    title: "Programme",
+    firstDay: "18 Mai",
+    firstHour: "17h",
+    secondHour: "18h",
+    thirdHour: "20h",
+    secondDay: "19 Mai",
+    forthHour: "9h",
+    ceremony: "Cérémonie",
+    cocktail: "Vin d'honneur",
+    reception: "Repas",
+    breakfast: "Petit déjeuner",
+  },
+  hy: {
+    title: "Ժամանակացույցը",
+    firstDay: "մայիսի 18",
+    firstHour: "17h",
+    secondHour: "18h",
+    thirdHour: "20h",
+    secondDay: "մայիսի 19",
+    forthHour: "9h",
+    ceremony: "Արարողություն",
+    cocktail: "Կոկտեյլ",
+    reception: "Ընդունելություն",
+    breakfast: "Նախաճաշ",
+  },
+};
+
+const lang = getLangFromUrl(Astro.url);
+const locales = Locales[lang];
 ---
 
-<h2 class="pt-4 text-center text-SHKDzeragir text-canard text-3xl">Schedule</h2>
+<h2 class="pt-4 text-center text-3xl">
+  <Title>{locales.title}</Title>
+</h2>
 
-<span class="text-SHKDzeragir text-canard flex">
+<span class="flex">
   <span class="basis-1/2 text-center flex flex-wrap">
-    <h3 class="basis-full text-center text-lg">18 Mai</h3>
-    <span class="basis-1/2 text-end pr-4">⛪ 17h</span>
-    <span class="basis-1/2 text-start">Ceremony</span>
-    <span class="basis-1/2 text-end pr-4">🍾 18h</span>
-    <span class="basis-1/2 text-start">Cocktail</span>
-    <span class="basis-1/2 text-end pr-4">🍽️ 20h</span>
-    <span class="basis-1/2 text-start">Reception</span>
+    <h3 class="basis-full text-center text-lg">{locales.firstDay}</h3>
+    <span class="basis-1/2 text-end pr-4">⛪ {locales.firstHour}</span>
+    <span class="basis-1/2 text-start">{locales.ceremony}</span>
+    <span class="basis-1/2 text-end pr-4">🍾 {locales.secondHour}</span>
+    <span class="basis-1/2 text-start">{locales.cocktail}</span>
+    <span class="basis-1/2 text-end pr-4">🍽️ {locales.thirdHour}</span>
+    <span class="basis-1/2 text-start">{locales.reception}</span>
   </span>
   <span class="basis-1/2 text-center flex flex-wrap border-l-2 border-gold">
-    <h3 class="basis-full text-center text-lg">19 Mai</h3>
-    <span class="basis-1/2 text-end pr-4">🥐 9h</span>
-    <span class="basis-1/2 text-start">Breakfast</span>
+    <h3 class="basis-full text-center text-lg">{locales.secondDay}</h3>
+    <span class="basis-1/2 text-end pr-4">🥐 {locales.forthHour}</span>
+    <span class="basis-1/2 text-start">{locales.breakfast}</span>
   </span>
 </span>

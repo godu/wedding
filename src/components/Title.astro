@@ -1,0 +1,9 @@
+---
+import { getLangFromUrl } from "../i18n/utils";
+
+const lang = getLangFromUrl(Astro.url);
+---
+
+<span class={lang === "hy" ? "text-ArtVernagrayinUnicode" : "text-parkLaneNF"}>
+  <slot />
+</span>
