@@ -12,7 +12,7 @@ const second = Math.floor((distance % (1000 * 60)) / 1000);
 <h2 class="pt-4 text-center text-SHKDzeragir text-canard text-3xl">
   Countdown
 </h2>
-<span class="text-center text-SHKDzeragir text-canard">
+<div class="text-center text-SHKDzeragir text-canard">
   <span id="day" class="text-xl">{day}</span>
   <span class="text-xl">:</span>
   <span id="hour" class="text-xl">{hour}</span>
@@ -20,7 +20,7 @@ const second = Math.floor((distance % (1000 * 60)) / 1000);
   <span id="minute" class="text-xl">{minute}</span>
   <span class="text-xl">:</span>
   <span id="second" class="text-xl">{second}</span>
-</span>
+</div>
 <script>
   const dayElement = document.getElementById("day");
   const hourElement = document.getElementById("hour");
