@@ -7,13 +7,14 @@ import tailwind from "@astrojs/tailwind";
 export default defineConfig({
 	integrations: [react(), tailwind()],
 	i18n: {
-		defaultLocale: "en",
+		defaultLocale: "fr",
 		locales: ["fr", "en", "hy"],
 		routing: {
+			redirectToDefaultLocale: false,
 			prefixDefaultLocale: true
 		}
 	},
 	server: {
 		host: true,
-	},
+	}
 });
