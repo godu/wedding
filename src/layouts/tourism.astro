@@ -1,0 +1,11 @@
+---
+import type { Language } from "../i18n/utils";
+
+interface Props {
+	lang: Language;
+}
+
+const { lang } = Astro.props;
+---
+
+<h2>Traveling {lang}</h2>
