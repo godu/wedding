@@ -1,0 +1,26 @@
+---
+import Break from "../components/Break.astro";
+import Header from "../components/Header.astro";
+import WhenWhere from "../components/WhenWhere.astro";
+import Countdown from "../components/Countdown.astro";
+import Schedule from "../components/Schedule.astro";
+import LanguageSwitcher from "../components/LanguageSwitcher.astro";
+import type { Language } from "../i18n/utils";
+
+interface Props {
+	lang: Language;
+}
+
+const { lang } = Astro.props;
+---
+
+<Break width={"sm:w-40"} margin={"min-w-[40%]"} />
+<Header lang={lang} />
+<Break width={"sm:w-60"} margin={"min-w-[50%]"} />
+<Countdown lang={lang} />
+<Break width={"sm:w-60"} margin={"min-w-[50%]"} />
+<WhenWhere />
+<Break width={"sm:w-60"} margin={"min-w-[50%]"} />
+<Schedule />
+<Break width={"sm:w-40"} margin={"min-w-[40%]"} />
+<LanguageSwitcher />

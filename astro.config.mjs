@@ -11,10 +11,10 @@ export default defineConfig({
 		locales: ["fr", "en", "hy"],
 		routing: {
 			redirectToDefaultLocale: false,
-			prefixDefaultLocale: true
-		}
+			prefixDefaultLocale: true,
+		},
 	},
 	server: {
 		host: true,
-	}
+	},
 });
