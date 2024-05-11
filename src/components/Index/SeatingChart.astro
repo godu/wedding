@@ -1,0 +1,151 @@
+---
+import { getLangFromUrl, type Language } from "../../i18n/utils";
+import Title from "../Title.astro";
+
+export type Schedule = {
+  title: string;
+  table: (n: number) => string;
+};
+
+export const Locales: Record<Language, Schedule> = {
+  en: {
+    title: "Seating plan",
+    table: (n) => `Table #${n} 🍽️`,
+  },
+  fr: {
+    title: "Plan de table",
+    table: (n) => `Table #${n} 🍽️`,
+  },
+  hy: {
+    title: "",
+    table: (n) => `սեղան թիվ ${n} 🍽️`,
+  },
+};
+
+const lang = getLangFromUrl(Astro.url);
+const locales = Locales[lang];
+
+type Table = { name: string; guests: string[] };
+const tables: Table[] = [
+  {
+    name: locales.table(1),
+    guests: ["Tatevik", "Arthur", "Nafie", "Jean-Yves", "Marina"],
+  },
+  {
+    name: locales.table(2),
+    guests: [
+      // Table 2
+      "Gisèle",
+      "Claude",
+      "Rita",
+      "Hrair",
+      "Lendrouch",
+      "Mara",
+      "Tigran",
+      "Kristina",
+    ],
+  },
+  {
+    name: locales.table(3),
+    guests: [
+      "Thomas S.",
+      "Thomas N.",
+      "Charlotte N.",
+      "Angela",
+      "Victor",
+      "Juliet",
+      "Olivia",
+      "Claude",
+    ],
+  },
+  {
+    name: locales.table(4),
+    guests: ["Alex", "Selin", "Hermine", "Garpard", "Tsarik", "Hagop"],
+  },
+  {
+    name: locales.table(5),
+    guests: [
+      "Denis",
+      "Frédérique",
+      "François",
+      "Marie-Béatrice",
+      "Philippe",
+      "Flore",
+      "Odile",
+      "Pierre",
+    ],
+  },
+  {
+    name: locales.table(6),
+    guests: [
+      "Edouard",
+      "Henri",
+      "Elza",
+      "Honorine",
+      "Théo",
+      "Amédée",
+      "Maylis",
+      "Marie-Gabrielle",
+      "Nicolas",
+    ],
+  },
+  {
+    name: locales.table(7),
+    guests: [
+      "Madeleine",
+      "David",
+      "Félicie",
+      "Edward",
+      "Paul-Anatole",
+      "Marie-Aliénor",
+      "Gabrielle",
+      "Julien",
+    ],
+  },
+  {
+    name: locales.table(8),
+    guests: [
+      "Wided",
+      "Salah",
+      "Princia",
+      "Pierre",
+      "Solène",
+      "Clément",
+      "Charlotte",
+      "Jean-Philippe",
+    ],
+  },
+  {
+    name: locales.table(9),
+    guests: [
+      "Tzovak",
+      "Ararat",
+      "Mickael",
+      "Ani",
+      "Rudik",
+      "Marwa",
+      "Fayçal",
+      "Dramane",
+    ],
+  },
+];
+---
+
+<h2 class="pt-4 text-center text-3xl">
+  <Title>{locales.title}</Title>
+</h2>
+
+<span class="pb-4 flex flex-wrap">
+  {
+    tables.map((table) => (
+      <span class="md:basis-1/4 sm:basis-1/3  basis-1/2 text-center flex flex-wrap border-l-2 border-gold first:border-0 last:border-0">
+        <h3 class="basis-full text-center text-lg">{table.name}</h3>
+        <ul class="basis-full text-center">
+          {table.guests.map((guest) => (
+            <li>{guest}</li>
+          ))}
+        </ul>
+      </span>
+    ))
+  }
+</span>
