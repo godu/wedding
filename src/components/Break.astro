@@ -1,14 +1,16 @@
 ---
 interface Props {
+  class: string;
   width: `sm:w-${number}`;
   margin: `min-w-[${number}%]`;
 }
 
-const { width, margin } = Astro.props;
+const { width, margin, class: class_ = "" } = Astro.props;
 ---
 
 <hr
   class:list={[
+    class_,
     `${width} ${margin}`,
     "mt-4 border-t-2 border-b-0 border-solid border-gold mx-auto w-auto",
   ]}

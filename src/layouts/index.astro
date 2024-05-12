@@ -6,7 +6,8 @@ import Countdown from "../components/Index/Countdown.astro";
 import Schedule from "../components/Index/Schedule.astro";
 import LanguageSwitcher from "../components/LanguageSwitcher.astro";
 import type { Language } from "../i18n/utils";
-import SeatingChart from "../components/Index/SeatingChart.astro";
+import SeatingChart from "../components/Index/SeatingPlan.astro";
+import Menu from "../components/Index/Menu.astro";
 
 interface Props {
 	lang: Language;
@@ -24,6 +25,8 @@ const { lang } = Astro.props;
 <WhenWhere />
 <Break width={"sm:w-60"} margin={"min-w-[50%]"} />
 <Schedule />
+<Break width={"sm:w-60"} margin={"min-w-[40%]"} />
+<Menu />
 <Break width={"sm:w-60"} margin={"min-w-[40%]"} />
 <SeatingChart />
 <Break width={"sm:w-40"} margin={"min-w-[40%]"} />

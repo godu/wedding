@@ -3,10 +3,14 @@ export default {
 	content: ["./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}"],
 	theme: {
 		extend: {
-				width: {
-					'160': '40rem',
-				}
+			fontFamily: {},
+			colors: {
+				gold: "#d4af37",
+				canard: "#264b56",
+			},
+			width: {
+				160: "40rem",
+			},
 		},
 	},
-	plugins: [],
 };

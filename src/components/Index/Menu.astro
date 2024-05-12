@@ -1,0 +1,135 @@
+---
+import { getLangFromUrl, type Language } from "../../i18n/utils";
+import Title from "../Title.astro";
+import Break from "../Break.astro";
+
+export type Where = {
+  title: string;
+  starter: string[];
+  firstCourse: string[];
+  troue: string[];
+  mainCourse: string[];
+  cheese: string[];
+  dessert: string[];
+};
+
+export const Locales: Record<Language, Where> = {
+  en: {
+    title: "Menu",
+    starter: [
+      "Fish terrine with cocktail sauce, shrimp and crab,",
+      "Crunchy vegetable tagliatelle with lemon vinegar",
+    ],
+    firstCourse: ["Fish balloon, clam and saffron juice, crunchy vegetables"],
+    troue: ["Mirabelle brandy sorbet"],
+    mainCourse: [
+      "Skewer-roasted rack of veal, fresh wild mushroom jus",
+      "Bundle of green beans, Provençal tomato and doormat apple",
+    ],
+    cheese: [
+      "Cheese slate",
+      "Morbier, Munster, County, Goat Manure, Camembert",
+      "Crunchy salad with honey vinegar and Mirabelle plum chutney",
+    ],
+    dessert: [
+      "Gourmet plate of three desserts",
+      "Pistachio Crème Brulée,",
+      "Vanilla Cabbage",
+      "3 chocolate dessert",
+    ],
+  },
+  fr: {
+    title: "Menu",
+    starter: [
+      "Terrine de poissons sauce cocktail, crevettes et crabe,",
+      "Tagliatelles de légumes croquants au vinaigre de citron",
+    ],
+    firstCourse: [
+      "Montgolfière de poissons, jus aux palourdes et Safran, Croquante de légumes",
+    ],
+    troue: ["Sorbet à l’eau de vie de mirabelle"],
+    mainCourse: [
+      "Carré de veau rôti à la broche, jus aux champignons frais des bois",
+      "Fagot de haricots verts, tomate Provençale et pomme paillasson",
+    ],
+    cheese: [
+      "Ardoise de fromages",
+      "Morbier, Munster, Comté, Crottin de Chèvre, Camembert",
+      "Salade croquante au vinaigre de miel et chutney de mirabelle",
+    ],
+    dessert: [
+      "Assiette gourmande de trois desserts",
+      "Crème Brulée Pistache,",
+      "Chou Vanille",
+      "Entremet 3 chocolats",
+    ],
+  },
+  hy: {
+    title: "Menu",
+    starter: [
+      "Fish terrine with cocktail sauce, shrimp and crab,",
+      "Crunchy vegetable tagliatelle with lemon vinegar",
+    ],
+    firstCourse: ["Fish balloon, clam and saffron juice, crunchy vegetables"],
+    troue: ["Mirabelle brandy sorbet"],
+    mainCourse: [
+      "Skewer-roasted rack of veal, fresh wild mushroom jus",
+      "Bundle of green beans, Provençal tomato and doormat apple",
+    ],
+    cheese: [
+      "Cheese slate",
+      "Morbier, Munster, County, Goat Manure, Camembert",
+      "Crunchy salad with honey vinegar and Mirabelle plum chutney",
+    ],
+    dessert: [
+      "Gourmet plate of three desserts",
+      "Pistachio Crème Brulée,",
+      "Vanilla Cabbage",
+      "3 chocolate dessert",
+    ],
+  },
+};
+
+const lang = getLangFromUrl(Astro.url);
+const locales = Locales[lang];
+---
+
+<h2 class="pt-4 text-center text-3xl"><Title>{locales.title}</Title></h2>
+
+<span class="flex flex-col">
+  {
+    locales.starter.map((d) => (
+      <span class="grow text-center flow-root">{d}</span>
+    ))
+  }
+  <Break class="mb-4" width={"sm:w-10"} margin={"min-w-[10%]"} />
+  {
+    locales.firstCourse.map((d) => (
+      <span class="grow text-center flow-root">{d}</span>
+    ))
+  }
+  <Break class="mb-4" width={"sm:w-10"} margin={"min-w-[10%]"} />
+  {
+    locales.troue.map((d) => (
+      <span class="grow text-center flow-root">{d}</span>
+    ))
+  }
+  <Break class="mb-4" width={"sm:w-10"} margin={"min-w-[10%]"} />
+  {
+    locales.mainCourse.map((d) => (
+      <span class="grow text-center flow-root">{d}</span>
+    ))
+  }
+  <Break class="mb-4" width={"sm:w-10"} margin={"min-w-[10%]"} />
+  {
+    locales.cheese.map((d) => (
+      <span class="grow text-center flow-root">{d}</span>
+    ))
+  }
+  <Break class="mb-4" width={"sm:w-10"} margin={"min-w-[10%]"} />
+  {
+    locales.dessert.map((d) => (
+      <span class="grow text-center flow-root">{d}</span>
+    ))
+  }
+</span>

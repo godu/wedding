@@ -34,7 +34,6 @@ const tables: Table[] = [
   {
     name: locales.table(2),
     guests: [
-      // Table 2
       "Gisèle",
       "Claude",
       "Rita",
@@ -141,7 +140,15 @@ const tables: Table[] = [
 <span class="pb-4 flex flex-wrap">
   {
     tables.map((table) => (
-      <span class="md:basis-1/4 sm:basis-1/3  basis-1/2 text-center flex flex-wrap border-l-2 border-gold first:border-0 last:border-0">
+      <span
+        class:list={[
+          "mt-2 text-center flex flex-wrap border-gold",
+          "md:basis-1/4 sm:basis-1/3 basis-1/2",
+          "max-sm:odd:border-r-2 max-sm:odd:border-r-0",
+          "sm:max-md:border-r-2 sm:max-md:[&:nth-child(3n)]:border-r-0",
+          "md:border-r-2 md:[&:nth-child(4n)]:border-r-0",
+        ]}
+      >
         <h3 class="basis-full text-center text-lg">{table.name}</h3>
         <ul class="basis-full text-center">
           {table.guests.map((guest) => (
