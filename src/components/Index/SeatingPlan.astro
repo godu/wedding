@@ -10,15 +10,15 @@ export type Schedule = {
 export const Locales: Record<Language, Schedule> = {
   en: {
     title: "Seating plan",
-    table: (n) => `Table #${n} 🍽️`,
+    table: (n) => `🍽️ Table #${n}`,
   },
   fr: {
     title: "Plan de table",
-    table: (n) => `Table #${n} 🍽️`,
+    table: (n) => `🍽️ Table #${n}`,
   },
   hy: {
     title: "",
-    table: (n) => `սեղան թիվ ${n} 🍽️`,
+    table: (n) => `🍽️ սեղան թիվ ${n}`,
   },
 };
 
@@ -142,11 +142,11 @@ const tables: Table[] = [
     tables.map((table) => (
       <span
         class:list={[
-          "mt-2 text-center flex flex-wrap border-gold",
+          "mt-2 text-center flex flex-wrap border-gold grow",
           "md:basis-1/4 sm:basis-1/3 basis-1/2",
-          "max-sm:odd:border-r-2 max-sm:odd:border-r-0",
-          "sm:max-md:border-r-2 sm:max-md:[&:nth-child(3n)]:border-r-0",
-          "md:border-r-2 md:[&:nth-child(4n)]:border-r-0",
+          "max-sm:even:border-l-2 max-sm:even:border-l-0",
+          "sm:max-md:border-l-2 sm:max-md:[&:nth-child(3n+1)]:border-l-0 sm:max-md:first:border-l-0",
+          "md:border-l-2 md:[&:nth-child(4n+1)]:border-l-0 md:first:border-l-0",
         ]}
       >
         <h3 class="basis-full text-center text-lg">{table.name}</h3>
