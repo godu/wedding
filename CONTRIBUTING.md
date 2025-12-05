@@ -27,7 +27,9 @@ Every push to `master` triggers the deployment pipeline:
 ### Files
 
 - `.github/workflows/continuous_deployment.yaml` - Main workflow
-- `.github/actions/move-issues-to-status/action.yml` - Reusable action for Kanban automation
+- `.github/actions/compute-issues-to-deploy/action.yml` - Gathers issues from commits and optionally from a status column
+- `.github/actions/sync-issues-status/action.yml` - Moves issues to a specified status column
+- `.github/actions/track-cycle-time/action.yml` - Computes cycle time from issue history
 
 ---
 
@@ -81,10 +83,16 @@ In Review → Deployed in Staging → Deployed in Production
             (after staging)       (after production)
 ```
 
-The automation:
-1. Parses commit messages for issue references
-2. Moves referenced issues to "Deployed in Staging" after staging deployment
-3. Moves them to "Deployed in Production" after production deployment
+**Staging deployment:**
+1. Computes issues to deploy (from commit messages: `fix #123`, `close #123`, etc.)
+2. Moves those issues to "Deployed in Staging"
+
+**Production deployment:**
+1. Computes issues to deploy (from commits + all issues in "Deployed in Staging")
+2. Moves all computed issues to "Deployed in Production"
+3. Computes cycle time for those issues
+
+> **Why include Staging issues?** With `cancel-in-progress` concurrency, if you push `fix #1` then quickly push `fix #2`, the first workflow gets canceled. When you approve production for the second workflow, both #1 and #2 are promoted because they're both computed in the same batch.
 
 ---
 
@@ -118,3 +126,51 @@ When this commit is pushed to master:
 1. GitHub closes issue #42
 2. Staging deploys → issue moves to "Deployed in Staging"
 3. You approve production → issue moves to "Deployed in Production"
+
+---
+
+## Cycle Time Tracking
+
+We automatically track how long issues take from "In Progress" to production deployment.
+
+### Custom Field
+
+| Field | Type | Description |
+|-------|------|-------------|
+| **Cycle Time** | Number | Duration in days from "In Progress" to "Deployed in Production" |
+
+### How It Works
+
+At production deployment, the automation:
+1. Receives the list of issues being deployed (from the compute step)
+2. For each issue, queries its timeline history (`ProjectV2ItemStatusChangedEvent`)
+3. Finds when the issue first moved to a work column (In Progress, In Review, etc.)
+4. If the issue was moved back to Backlog/Todo, the timer resets
+5. Calculates the number of days from start to now (2 decimal precision)
+6. Sets the "Cycle Time" field (skips if already set)
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│  Todo → In Progress     │  Timestamp recorded in issue history   │
+│  (you move manually)    │  (automatic by GitHub)                 │
+├───────────────────────────────────────────────────────────────────┤
+│  In Progress → Backlog  │  Timer resets (issue went back)        │
+│  (if moved back)        │                                        │
+├───────────────────────────────────────────────────────────────────┤
+│  → Deployed in Prod     │  Cycle Time computed from history      │
+│  (after approval)       │  (via track-cycle-time action)         │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### Viewing Cycle Time
+
+In the GitHub Project, create a view with:
+- **Filter**: `Status:Deployed in Production`
+- **Sort**: `Cycle Time` (ascending for fastest, descending for slowest)
+- **Columns**: Title, Cycle Time
+
+### Files
+
+- `.github/actions/compute-issues-to-deploy/action.yml` - Gathers issues from commits and status column
+- `.github/actions/sync-issues-status/action.yml` - Moves issues to a specified status column
+- `.github/actions/track-cycle-time/action.yml` - Computes cycle time from issue history

@@ -88,13 +88,22 @@ jobs:
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
-      - name: Move issues to Deployed in Staging 📋
+      - name: Compute issues to deploy 📊
+        id: compute
         if: github.event_name == 'push'
-        uses: ./.github/actions/move-issues-to-status
+        uses: ./.github/actions/compute-issues-to-deploy
         with:
-          status-name: Deployed in Staging
           project-token: ${{ secrets.PROJECT_TOKEN }}
           project-number: ${{ vars.PROJECT_NUMBER }}
+
+      - name: Sync issues to Deployed in Staging 📋
+        if: github.event_name == 'push'
+        uses: ./.github/actions/sync-issues-status
+        with:
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
+          issues: ${{ steps.compute.outputs.issues }}
+          to-status: Deployed in Staging
 
   Production:
     needs: Staging
@@ -141,10 +150,28 @@ jobs:
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
-      - name: Move issues to Deployed in Production 📋
+      - name: Compute issues to deploy 📊
+        id: compute
         if: github.event_name == 'push'
-        uses: ./.github/actions/move-issues-to-status
+        uses: ./.github/actions/compute-issues-to-deploy
         with:
-          status-name: Deployed in Production
           project-token: ${{ secrets.PROJECT_TOKEN }}
           project-number: ${{ vars.PROJECT_NUMBER }}
+          from-status: Deployed in Staging
+
+      - name: Sync issues to Deployed in Production 📋
+        if: github.event_name == 'push'
+        uses: ./.github/actions/sync-issues-status
+        with:
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
+          issues: ${{ steps.compute.outputs.issues }}
+          to-status: Deployed in Production
+
+      - name: Track cycle time ⏱️
+        if: github.event_name == 'push'
+        uses: ./.github/actions/track-cycle-time
+        with:
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
+          issues: ${{ steps.compute.outputs.issues }}

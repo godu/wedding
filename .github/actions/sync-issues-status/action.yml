@@ -1,48 +1,59 @@
-name: Move Issues to Project Status
-description: Moves issues referenced in commit messages to a specified project status
+name: Sync Issues Status
+description: Moves issues to a specified status column
 
 inputs:
-  status-name:
-    description: 'Target status name (e.g., "Deployed in Staging", "Deployed in Production")'
-    required: true
   project-token:
     description: 'GitHub token with project permissions'
     required: true
   project-number:
     description: 'GitHub Project number'
     required: true
+  issues:
+    description: 'JSON array of issue numbers to move (optional, falls back to parsing commits)'
+    required: false
+    default: ''
+  to-status:
+    description: 'Target status column'
+    required: true
 
 runs:
   using: composite
   steps:
-    - name: Move issues to ${{ inputs.status-name }} 📋
+    - name: Move issues to ${{ inputs.to-status }} 📋
       uses: actions/github-script@v7
       with:
         github-token: ${{ inputs.project-token }}
         script: |
-          const statusName = '${{ inputs.status-name }}';
+          const toStatus = '${{ inputs.to-status }}';
           const projectNumber = parseInt('${{ inputs.project-number }}');
+          const issuesInput = '${{ inputs.issues }}';
           const owner = context.repo.owner;
+          const repo = context.repo.repo;
 
-          // Get commits from the push
-          const commits = context.payload.commits || [];
-          const issueNumbers = new Set();
-
-          // Extract issue numbers from commit messages (fix #123, close #123, etc.)
-          const pattern = /(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s*#(\d+)/gi;
-          for (const commit of commits) {
-            let match;
-            while ((match = pattern.exec(commit.message)) !== null) {
-              issueNumbers.add(parseInt(match[1]));
+          // Get issue numbers: from input or parse commits
+          let issueNumbers;
+          if (issuesInput && issuesInput !== '[]') {
+            issueNumbers = JSON.parse(issuesInput);
+            console.log(`Using provided issues: ${issueNumbers.join(', ')}`);
+          } else {
+            // Fallback: parse commits
+            const commits = context.payload.commits || [];
+            const pattern = /(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s*#(\d+)/gi;
+            const parsed = new Set();
+            for (const commit of commits) {
+              let match;
+              while ((match = pattern.exec(commit.message)) !== null) {
+                parsed.add(parseInt(match[1]));
+              }
             }
+            issueNumbers = [...parsed];
+            console.log(`Parsed from commits: ${issueNumbers.join(', ') || 'none'}`);
           }
 
-          if (issueNumbers.size === 0) {
+          if (issueNumbers.length === 0) {
             console.log('No issues to move');
             return;
           }
-
-          console.log(`Found issues to move: ${[...issueNumbers].join(', ')}`);
 
           // Get the project
           const projectQuery = `
@@ -64,10 +75,10 @@ runs:
           const projectData = await github.graphql(projectQuery, { owner, number: projectNumber });
           const project = projectData.user.projectV2;
           const statusField = project.field;
-          const targetOption = statusField.options.find(o => o.name === statusName);
+          const targetOption = statusField.options.find(o => o.name === toStatus);
 
           if (!targetOption) {
-            console.log(`Could not find "${statusName}" status option`);
+            console.log(`Could not find "${toStatus}" status option`);
             return;
           }
 
@@ -93,7 +104,7 @@ runs:
 
               const issueData = await github.graphql(issueQuery, {
                 owner,
-                repo: context.repo.repo,
+                repo,
                 number: issueNumber
               });
 
@@ -126,7 +137,7 @@ runs:
                 optionId: targetOption.id
               });
 
-              console.log(`Moved issue #${issueNumber} to ${statusName}`);
+              console.log(`Moved issue #${issueNumber} to ${toStatus}`);
             } catch (error) {
               console.log(`Failed to move issue #${issueNumber}: ${error.message}`);
             }

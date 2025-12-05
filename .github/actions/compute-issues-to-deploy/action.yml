@@ -1,0 +1,95 @@
+name: Compute Issues to Deploy
+description: Gathers issues from commits and optionally from a status column
+
+inputs:
+  project-token:
+    description: 'GitHub token with project permissions'
+    required: true
+  project-number:
+    description: 'GitHub Project number'
+    required: true
+  from-status:
+    description: 'Also include issues from this status column (optional)'
+    required: false
+    default: ''
+
+outputs:
+  issues:
+    description: 'JSON array of issue numbers to deploy'
+    value: ${{ steps.compute.outputs.issues }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute issues to deploy 📊
+      id: compute
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.project-token }}
+        script: |
+          const projectNumber = parseInt('${{ inputs.project-number }}');
+          const fromStatus = '${{ inputs.from-status }}';
+          const owner = context.repo.owner;
+
+          const issueNumbers = new Set();
+
+          // 1. Parse commits for issue refs
+          const commits = context.payload.commits || [];
+          const pattern = /(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s*#(\d+)/gi;
+          for (const commit of commits) {
+            let match;
+            while ((match = pattern.exec(commit.message)) !== null) {
+              issueNumbers.add(parseInt(match[1]));
+            }
+          }
+
+          console.log(`Issues from commits: ${[...issueNumbers].join(', ') || 'none'}`);
+
+          // 2. If from-status provided, query project for issues in that status
+          if (fromStatus) {
+            const projectQuery = `
+              query($owner: String!, $number: Int!) {
+                user(login: $owner) {
+                  projectV2(number: $number) {
+                    id
+                    items(first: 100) {
+                      nodes {
+                        fieldValueByName(name: "Status") {
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                          }
+                        }
+                        content {
+                          ... on Issue {
+                            number
+                          }
+                          ... on PullRequest {
+                            number
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const projectData = await github.graphql(projectQuery, { owner, number: projectNumber });
+            const items = projectData.user.projectV2.items.nodes;
+
+            const statusIssues = items
+              .filter(item => item.fieldValueByName?.name === fromStatus && item.content?.number)
+              .map(item => item.content.number);
+
+            for (const num of statusIssues) {
+              issueNumbers.add(num);
+            }
+
+            console.log(`Issues from "${fromStatus}": ${statusIssues.join(', ') || 'none'}`);
+          }
+
+          // 3. Output combined list
+          const issueArray = [...issueNumbers];
+          console.log(`Total issues to deploy: ${issueArray.join(', ') || 'none'}`);
+
+          core.setOutput('issues', JSON.stringify(issueArray));
