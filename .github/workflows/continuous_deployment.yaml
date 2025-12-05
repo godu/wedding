@@ -69,6 +69,10 @@ jobs:
           node-version-file: package.json
           cache: "npm"
 
+      - name: Install infrastructure dependencies 📥
+        run: npm ci
+        working-directory: infrastructure
+
       - name: Deploy to Staging 🚀
         uses: pulumi/actions@v5
         with:
