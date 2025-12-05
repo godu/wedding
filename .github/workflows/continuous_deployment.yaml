@@ -10,42 +10,36 @@ on:
       - master
   schedule:
     - cron: "0 2 * * *"
-      
 
 concurrency:
   group: ${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
   Deployment:
     runs-on: ubuntu-latest
+    environment: Production
+    timeout-minutes: 15
     steps:
       - name: Checkout source 📡
         uses: actions/checkout@v4
       - name: Configure AWS Credentials 🔑
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5.1.1
         with:
           aws-region: ${{ secrets.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-
-      - name: Cache primes 🗄️
-        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-        id: npm-cache-dir
-      - name: Get npm cache directory 🗄️
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.npm-cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-${{ github.job }}-
 
       - name: Setup Node.js 📦
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          cache: 'npm'
+          cache: "npm"
+
       - name: Install dependencies 📥
-        run: npm ci
+        run: npm ci --omit=dev
+
       - name: Build dependencies 🧑‍🏭
-        run: npm run build --omit=dev
+        run: npm run build
 
       - name: Deployment 🚀
         uses: pulumi/actions@v5
