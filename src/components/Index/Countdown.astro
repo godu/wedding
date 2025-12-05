@@ -23,12 +23,37 @@ const locales = Locales[lang];
 
 const date = new Date("2024-05-18T17:00:00.000+02:00");
 const now = new Date();
-const distance = date.getTime() - now.getTime();
 
-const day = Math.floor(distance / (1000 * 60 * 60 * 24));
-const hour = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-const minute = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-const second = Math.floor((distance % (1000 * 60)) / 1000);
+const computeDiff = (from: Date, to: Date) => {
+  let years = to.getFullYear() - from.getFullYear();
+  let months = to.getMonth() - from.getMonth();
+  let days = to.getDate() - from.getDate();
+  let hours = to.getHours() - from.getHours();
+  let minutes = to.getMinutes() - from.getMinutes();
+  let seconds = to.getSeconds() - from.getSeconds();
+
+  if (seconds < 0) { seconds += 60; minutes--; }
+  if (minutes < 0) { minutes += 60; hours--; }
+  if (hours < 0) { hours += 24; days--; }
+  if (days < 0) {
+    const prevMonth = new Date(to.getFullYear(), to.getMonth(), 0);
+    days += prevMonth.getDate();
+    months--;
+  }
+  if (months < 0) { months += 12; years--; }
+
+  return { years, months, days, hours, minutes, seconds };
+};
+
+const [from, to] = date < now ? [date, now] : [now, date];
+const diff = computeDiff(from, to);
+
+const year = diff.years;
+const month = diff.months;
+const day = diff.days;
+const hour = diff.hours;
+const minute = diff.minutes;
+const second = diff.seconds;
 ---
 
 <h2 class="pt-4 text-center text-3xl">
@@ -37,39 +62,57 @@ const second = Math.floor((distance % (1000 * 60)) / 1000);
   </Title>
 </h2>
 <div class="text-center">
-  <span id="day" class="text-xl">{day}</span>
-  <span class="text-xl">:</span>
-  <span id="hour" class="text-xl">{hour}</span>
-  <span class="text-xl">:</span>
-  <span id="minute" class="text-xl">{minute}</span>
-  <span class="text-xl">:</span>
-  <span id="second" class="text-xl">{second}</span>
+  <span id="year" class="text-xl">{year}</span><span class="text-xl">y : </span>
+  <span id="month" class="text-xl">{month}</span><span class="text-xl">m : </span>
+  <span id="day" class="text-xl">{day}</span><span class="text-xl">d : </span>
+  <span id="hour" class="text-xl">{hour}</span><span class="text-xl">h : </span>
+  <span id="minute" class="text-xl">{minute}</span><span class="text-xl">min : </span>
+  <span id="second" class="text-xl">{second}</span><span class="text-xl">s</span>
 </div>
 <script>
+  const yearElement = document.getElementById("year");
+  const monthElement = document.getElementById("month");
   const dayElement = document.getElementById("day");
   const hourElement = document.getElementById("hour");
   const minuteElement = document.getElementById("minute");
   const secondElement = document.getElementById("second");
 
-  if (dayElement && hourElement && minuteElement && secondElement) {
+  if (yearElement && monthElement && dayElement && hourElement && minuteElement && secondElement) {
     const date = new Date("2024-05-18T17:00:00.000+02:00");
+
+    const computeDiff = (from: Date, to: Date) => {
+      let years = to.getFullYear() - from.getFullYear();
+      let months = to.getMonth() - from.getMonth();
+      let days = to.getDate() - from.getDate();
+      let hours = to.getHours() - from.getHours();
+      let minutes = to.getMinutes() - from.getMinutes();
+      let seconds = to.getSeconds() - from.getSeconds();
+
+      if (seconds < 0) { seconds += 60; minutes--; }
+      if (minutes < 0) { minutes += 60; hours--; }
+      if (hours < 0) { hours += 24; days--; }
+      if (days < 0) {
+        const prevMonth = new Date(to.getFullYear(), to.getMonth(), 0);
+        days += prevMonth.getDate();
+        months--;
+      }
+      if (months < 0) { months += 12; years--; }
+
+      return { years, months, days, hours, minutes, seconds };
+    };
 
     const loop = () => {
       const now = new Date();
-      const distance = date.getTime() - now.getTime();
-
-      const day = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hour = Math.floor(
-        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
-      );
-      const minute = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-      const second = Math.floor((distance % (1000 * 60)) / 1000);
+      const [from, to] = date < now ? [date, now] : [now, date];
+      const diff = computeDiff(from, to);
 
       requestAnimationFrame(() => {
-        dayElement.innerText = `${day}`;
-        hourElement.innerText = `${hour}`;
-        minuteElement.innerText = `${minute}`;
-        secondElement.innerText = `${second}`;
+        yearElement.innerText = `${diff.years}`;
+        monthElement.innerText = `${diff.months}`;
+        dayElement.innerText = `${diff.days}`;
+        hourElement.innerText = `${diff.hours}`;
+        minuteElement.innerText = `${diff.minutes}`;
+        secondElement.innerText = `${diff.seconds}`;
 
         setTimeout(loop, 1000);
       });
