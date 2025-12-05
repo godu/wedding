@@ -1,0 +1,5 @@
+config:
+  aws-native:region: eu-west-1
+  github:owner: godu
+  infrastructure:domainName: staging.weberian.fr
+encryptionsalt: v1:3Sfw01d/hZc=:v1:m4fIwE7sZROo3LvC:AVzuMCO9hA+zKPfGuikGXQ9dr3/m7w==

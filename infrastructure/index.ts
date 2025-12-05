@@ -7,8 +7,13 @@ const USEast1Provider = new aws.Provider("awsProvider", {
 	region: aws.Region.USEast1,
 });
 
+const config = new pulumi.Config();
 const githubConfig = new pulumi.Config("github");
 const organizationName = githubConfig.require("owner");
+
+// Stack-specific configuration
+const domainName = config.require("domainName");
+const isProduction = pulumi.getStack() === "production";
 
 const accountId = awsnative.getAccountId().then(({ accountId }) => accountId);
 const stack = pulumi.getStack();
@@ -19,84 +24,106 @@ const tags = [
 	},
 ];
 
-const githubOidcProvider = new aws.iam.OpenIdConnectProvider(
-	"GithubOidcProvider",
-	{
-		url: "https://token.actions.githubusercontent.com",
-		clientIdLists: ["sts.amazonaws.com"],
-		thumbprintLists: ["ffffffffffffffffffffffffffffffffffffffff"],
-	},
-);
+// =============================================================================
+// Shared Resources (only in production stack)
+// =============================================================================
 
-const weddingGithubActionAssumeRole = new aws.iam.Role(
-	"weddingGithubActionAssumeRole",
-	{
-		assumeRolePolicy: {
+const githubOidcProvider = isProduction
+	? new aws.iam.OpenIdConnectProvider("GithubOidcProvider", {
+			url: "https://token.actions.githubusercontent.com",
+			clientIdLists: ["sts.amazonaws.com"],
+			thumbprintLists: ["ffffffffffffffffffffffffffffffffffffffff"],
+		})
+	: undefined;
+
+const githubOidcProviderArn = isProduction
+	? githubOidcProvider!.arn
+	: accountId.then(
+			(id) =>
+				`arn:aws:iam::${id}:oidc-provider/token.actions.githubusercontent.com`,
+		);
+
+const weddingGithubActionAssumeRole = isProduction
+	? new aws.iam.Role("weddingGithubActionAssumeRole", {
+			assumeRolePolicy: {
+				Version: "2012-10-17",
+				Statement: [
+					{
+						Effect: "Allow",
+						Action: "sts:AssumeRoleWithWebIdentity",
+						Principal: {
+							Federated: githubOidcProviderArn,
+						},
+						Condition: {
+							StringEquals: {
+								"token.actions.githubusercontent.com:aud": ["sts.amazonaws.com"],
+							},
+							StringLike: {
+								"token.actions.githubusercontent.com:sub": [
+									"repo",
+									`${organizationName}/wedding`,
+									"*",
+								].join(":"),
+							},
+						},
+					},
+				],
+			},
+		})
+	: undefined;
+
+const weddingPulumiStateBucket = isProduction
+	? new awsnative.s3.Bucket(
+			"wedding-pulumi-state-bucket",
+			{ tags },
+			{ protect: true },
+		)
+	: undefined;
+
+if (isProduction && weddingGithubActionAssumeRole && weddingPulumiStateBucket) {
+	new aws.iam.RolePolicy("WeddingGithubActionAssumeRolePolicy", {
+		role: weddingGithubActionAssumeRole.id,
+		policy: {
 			Version: "2012-10-17",
 			Statement: [
 				{
 					Effect: "Allow",
-					Action: "sts:AssumeRoleWithWebIdentity",
-					Principal: {
-						Federated: githubOidcProvider.arn,
-					},
-					Condition: {
-						StringEquals: {
-							"token.actions.githubusercontent.com:aud": ["sts.amazonaws.com"],
-						},
-						StringLike: {
-							"token.actions.githubusercontent.com:sub": [
-								"repo",
-								`${organizationName}/wedding`,
-								"*",
-							].join(":"),
-						},
-					},
+					Action: ["s3:*"],
+					Resource: [
+						pulumi.interpolate`arn:aws:s3:::${weddingPulumiStateBucket.id}`,
+						pulumi.interpolate`arn:aws:s3:::${weddingPulumiStateBucket.id}/*`,
+					],
+				},
+				{
+					Effect: "Allow",
+					Action: [
+						"acm:*",
+						"cloudformation:*",
+						"cloudfront:*",
+						"iam:*",
+						"lambda:*",
+						"route53:*",
+						"s3:*",
+					],
+					Resource: ["*"],
 				},
 			],
 		},
-	},
-);
+	});
+}
 
-const weddingPulumiStateBucket = new awsnative.s3.Bucket(
-	"wedding-pulumi-state-bucket",
-	{ tags },
-	{ protect: true },
-);
-export const weddingPulumiStateBucketName = weddingPulumiStateBucket.bucketName;
+export const weddingPulumiStateBucketName = weddingPulumiStateBucket?.bucketName;
+export const weddingGithubActionAssumeRoleArn = weddingGithubActionAssumeRole?.arn;
 
-new aws.iam.RolePolicy("WeddingGithubActionAssumeRolePolicy", {
-	role: weddingGithubActionAssumeRole.id,
-	policy: {
-		Version: "2012-10-17",
-		Statement: [
-			{
-				Effect: "Allow",
-				Action: ["s3:*"],
-				Resource: [
-					pulumi.interpolate`arn:aws:s3:::${weddingPulumiStateBucket.id}`,
-					pulumi.interpolate`arn:aws:s3:::${weddingPulumiStateBucket.id}/*`,
-				],
-			},
-			{
-				Effect: "Allow",
-				Action: [
-					"acm:*",
-					"cloudformation:*",
-					"cloudfront:*",
-					"iam:*",
-					"lambda:*",
-					"route53:*",
-					"s3:*",
-				],
-				Resource: ["*"],
-			},
-		],
-	},
-});
+// =============================================================================
+// Environment Resources (created in both stacks)
+// =============================================================================
 
-export const weddingGithubActionAssumeRoleArn =
-	weddingGithubActionAssumeRole.arn;
+const CACHING_OPTIMIZED = "658327ea-f89d-4fab-a63d-7e88639e58f6";
+
+const weddingHostedZoneId = aws.route53
+	.getZone({ name: "weberian.fr" })
+	.then(({ zoneId }) => zoneId || "");
 
 const weddingBucket = new awsnative.s3.Bucket("wedding", { tags });
 
@@ -111,7 +138,7 @@ const weddingOriginAccessControl = new awsnative.cloudfront.OriginAccessControl(
 	"WeddingOriginAccessControl",
 	{
 		originAccessControlConfig: {
-			name: "wedding-origin-access-control",
+			name: `wedding-${stack}-origin-access-control`,
 			originAccessControlOriginType: "s3",
 			signingBehavior: "always",
 			signingProtocol: "sigv4",
@@ -119,29 +146,27 @@ const weddingOriginAccessControl = new awsnative.cloudfront.OriginAccessControl(
 	},
 );
 
-const CACHING_OPTIMIZED = "658327ea-f89d-4fab-a63d-7e88639e58f6";
-
-const weddingCertification = new aws.acm.Certificate(
+const weddingCertificate = new aws.acm.Certificate(
 	"WeddingCertificate",
 	{
-		domainName: "weberian.fr",
+		domainName: domainName,
 		validationMethod: "DNS",
 	},
 	{ provider: USEast1Provider },
 );
 
-export const certificateArn = weddingCertification.arn;
+export const certificateArn = weddingCertificate.arn;
 
-const weddingCertificationValidationDomain = new aws.route53.Record(
+const weddingCertificateValidationDomain = new aws.route53.Record(
 	"WeddingCertificateValidationDomain",
 	{
-		name: weddingCertification.domainValidationOptions[0].resourceRecordName,
-		type: weddingCertification.domainValidationOptions[0].resourceRecordType,
+		name: weddingCertificate.domainValidationOptions[0].resourceRecordName,
+		type: weddingCertificate.domainValidationOptions[0].resourceRecordType,
 		zoneId: aws.route53
 			.getZone({ name: "weberian.fr" }, { async: true })
 			.then((zone) => zone.zoneId),
 		records: [
-			weddingCertification.domainValidationOptions[0].resourceRecordValue,
+			weddingCertificate.domainValidationOptions[0].resourceRecordValue,
 		],
 		ttl: 60,
 	},
@@ -151,8 +176,8 @@ const weddingCertificationValidationDomain = new aws.route53.Record(
 new aws.acm.CertificateValidation(
 	"weddingValidation",
 	{
-		certificateArn: weddingCertification.arn,
-		validationRecordFqdns: [weddingCertificationValidationDomain.fqdn],
+		certificateArn: weddingCertificate.arn,
+		validationRecordFqdns: [weddingCertificateValidationDomain.fqdn],
 	},
 	{ provider: USEast1Provider },
 );
@@ -165,7 +190,7 @@ const weddingDistribution = new awsnative.cloudfront.Distribution(
 			priceClass: "PriceClass_100",
 			httpVersion: "http2and3",
 			defaultRootObject: "index.html",
-			aliases: ["weberian.fr"],
+			aliases: [domainName],
 			viewerCertificate: {
 				acmCertificateArn: certificateArn,
 				minimumProtocolVersion: "TLSv1.2_2021",
@@ -189,6 +214,8 @@ const weddingDistribution = new awsnative.cloudfront.Distribution(
 		},
 	},
 );
+
+export const distributionId = weddingDistribution.id;
 
 const weddingDistributionHostedZoneId = pulumi
 	.all([weddingDistribution.id])
@@ -220,12 +247,8 @@ new awsnative.s3.BucketPolicy("WeddingBucketPolicy", {
 	},
 });
 
-const weddingHostedZoneId = aws.route53
-	.getZone({ name: "weberian.fr" })
-	.then(({ zoneId }) => zoneId || "");
-
 new aws.route53.Record("WeddingRecord", {
-	name: "weberian.fr",
+	name: domainName,
 	type: "A",
 	zoneId: weddingHostedZoneId,
 	aliases: [
@@ -236,3 +259,5 @@ new aws.route53.Record("WeddingRecord", {
 		},
 	],
 });
+
+export const bucketName = weddingBucket.bucketName;
