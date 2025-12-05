@@ -261,3 +261,4 @@ new aws.route53.Record("WeddingRecord", {
 });
 
 export const bucketName = weddingBucket.bucketName;
+export const url = `https://${domainName}`;

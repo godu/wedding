@@ -16,8 +16,25 @@ Every push to `master` triggers the deployment pipeline:
 | Job | Description | Trigger |
 |-----|-------------|---------|
 | **Build** | Installs dependencies, builds the project, uploads artifact | Automatic |
-| **Staging** | Deploys to staging environment via Pulumi, invalidates CloudFront cache | Automatic after Build |
-| **Production** | Deploys to production environment via Pulumi, invalidates CloudFront cache | Manual approval required |
+| **Staging** | Deploys to staging environment via Pulumi | Automatic after Build |
+| **Production** | Deploys to production environment via Pulumi | Requires environment approval |
+
+### Approving Production Deployment
+
+When staging completes, the Production job waits for approval:
+
+1. Go to the workflow run in GitHub Actions
+2. Click "Review deployments"
+3. Select "Production" and approve
+
+Or via CLI:
+```bash
+# List pending runs
+gh run list --status waiting
+
+# Approve via web UI
+gh run view <run-id> --web
+```
 
 ### Triggers
 
@@ -26,8 +43,8 @@ Every push to `master` triggers the deployment pipeline:
 
 ### Files
 
-- `.github/workflows/continuous_deployment.yaml` - Main workflow
-- `.github/actions/compute-issues-to-deploy/action.yml` - Gathers issues from commits and optionally from a status column
+- `.github/workflows/continuous_deployment.yaml` - Main deployment workflow
+- `.github/actions/compute-issues-to-deploy/action.yml` - Gathers issues from commits and status column
 - `.github/actions/sync-issues-status/action.yml` - Moves issues to a specified status column
 - `.github/actions/track-cycle-time/action.yml` - Computes cycle time from issue history
 
