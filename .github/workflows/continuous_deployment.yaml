@@ -3,6 +3,7 @@ name: Continuous Deployment 🚀
 permissions:
   id-token: write
   contents: read
+  issues: write
 
 on:
   push:
@@ -87,6 +88,14 @@ jobs:
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
+      - name: Move issues to Deployed in Staging 📋
+        if: github.event_name == 'push'
+        uses: ./.github/actions/move-issues-to-status
+        with:
+          status-name: Deployed in Staging
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
+
   Production:
     needs: Staging
     runs-on: ubuntu-latest
@@ -131,3 +140,11 @@ jobs:
       - name: Invalidate Production CloudFront cache 🌩️
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+      - name: Move issues to Deployed in Production 📋
+        if: github.event_name == 'push'
+        uses: ./.github/actions/move-issues-to-status
+        with:
+          status-name: Deployed in Production
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
