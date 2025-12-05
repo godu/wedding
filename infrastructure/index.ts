@@ -19,13 +19,14 @@ const tags = [
 	},
 ];
 
-const githubOidcProviderArn = accountId
-	.then(async (accountId) =>
-		awsnative.iam.getOidcProvider({
-			arn: `arn:aws:iam::${accountId}:oidc-provider/token.actions.githubusercontent.com`,
-		}),
-	)
-	.then(({ arn }) => arn ?? "");
+const githubOidcProvider = new aws.iam.OpenIdConnectProvider(
+	"GithubOidcProvider",
+	{
+		url: "https://token.actions.githubusercontent.com",
+		clientIdLists: ["sts.amazonaws.com"],
+		thumbprintLists: ["ffffffffffffffffffffffffffffffffffffffff"],
+	},
+);
 
 const weddingGithubActionAssumeRole = new aws.iam.Role(
 	"weddingGithubActionAssumeRole",
@@ -37,7 +38,7 @@ const weddingGithubActionAssumeRole = new aws.iam.Role(
 					Effect: "Allow",
 					Action: "sts:AssumeRoleWithWebIdentity",
 					Principal: {
-						Federated: githubOidcProviderArn,
+						Federated: githubOidcProvider.arn,
 					},
 					Condition: {
 						StringEquals: {
