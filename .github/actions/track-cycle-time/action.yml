@@ -20,10 +20,10 @@ inputs:
     description: 'Comma-separated list of columns that reset the cycle time (issue goes back to planning)'
     required: false
     default: 'Backlog,Todo'
-  work-columns:
-    description: 'Comma-separated list of columns that start the cycle time (work begins)'
+  counted-columns:
+    description: 'Comma-separated list of columns where time is counted'
     required: false
-    default: 'In Progress,In Review,Deployed in Staging,Deployed in Production'
+    default: 'In Progress,In Review'
   work-day-start:
     description: 'Start hour of working day (0-23)'
     required: false
@@ -51,7 +51,7 @@ runs:
           const repo = context.repo.repo;
           const cycleTimeFieldName = '${{ inputs.cycle-time-field }}';
           const resetColumns = '${{ inputs.reset-columns }}'.split(',').map(s => s.trim());
-          const workColumns = '${{ inputs.work-columns }}'.split(',').map(s => s.trim());
+          const countedColumns = '${{ inputs.counted-columns }}'.split(',').map(s => s.trim());
           const workDayStart = parseInt('${{ inputs.work-day-start }}');
           const workDayEnd = parseInt('${{ inputs.work-day-end }}');
           const timezone = '${{ inputs.timezone }}';
@@ -271,24 +271,43 @@ runs:
                 continue;
               }
 
-              // Find the effective start time by iterating through history
-              // Reset if issue moves back to Backlog/Todo
-              let startedAt = null;
+              // Calculate cycle time by summing time spent in counted columns
+              // - Counted columns: time counts while in these
+              // - Reset columns: discard accumulated time
+              // - Other columns: pause (preserve accumulated time)
+              let totalWorkingDays = 0;
+              let enteredAt = null;
+
               for (const event of statusChanges) {
                 if (resetColumns.includes(event.status)) {
-                  startedAt = null;
-                } else if (workColumns.includes(event.status) && !startedAt) {
-                  startedAt = event.createdAt;
+                  // Reset: discard accumulated time
+                  totalWorkingDays = 0;
+                  enteredAt = null;
+                } else if (countedColumns.includes(event.status)) {
+                  // Entering a counted column
+                  if (!enteredAt) {
+                    enteredAt = event.createdAt;
+                  }
+                } else {
+                  // Leaving counted columns (pause)
+                  if (enteredAt) {
+                    totalWorkingDays += countWorkingDays(enteredAt, event.createdAt);
+                    enteredAt = null;
+                  }
                 }
               }
 
-              if (!startedAt) {
-                console.log(`Issue #${issueNumber} was never moved to a work column`);
+              // If still in a counted column, count until now
+              if (enteredAt) {
+                totalWorkingDays += countWorkingDays(enteredAt, today);
+              }
+
+              if (totalWorkingDays === 0) {
+                console.log(`Issue #${issueNumber} has no time in counted columns`);
                 continue;
               }
 
-              const startDate = new Date(startedAt);
-              const cycleTime = parseFloat(countWorkingDays(startDate, today).toFixed(2));
+              const cycleTime = parseFloat(totalWorkingDays.toFixed(2));
 
               // Update Cycle Time field
               const mutation = `
