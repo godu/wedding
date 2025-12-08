@@ -24,6 +24,18 @@ inputs:
     description: 'Comma-separated list of columns that start the cycle time (work begins)'
     required: false
     default: 'In Progress,In Review,Deployed in Staging,Deployed in Production'
+  work-day-start:
+    description: 'Start hour of working day (0-23)'
+    required: false
+    default: '9'
+  work-day-end:
+    description: 'End hour of working day (0-23)'
+    required: false
+    default: '18'
+  timezone:
+    description: 'IANA timezone for working hours (e.g., Europe/Paris, America/New_York)'
+    required: false
+    default: 'UTC'
 
 runs:
   using: composite
@@ -40,6 +52,9 @@ runs:
           const cycleTimeFieldName = '${{ inputs.cycle-time-field }}';
           const resetColumns = '${{ inputs.reset-columns }}'.split(',').map(s => s.trim());
           const workColumns = '${{ inputs.work-columns }}'.split(',').map(s => s.trim());
+          const workDayStart = parseInt('${{ inputs.work-day-start }}');
+          const workDayEnd = parseInt('${{ inputs.work-day-end }}');
+          const timezone = '${{ inputs.timezone }}';
 
           // Get issue numbers: from input or parse commits
           let issueNumbers;
@@ -91,70 +106,110 @@ runs:
 
           const today = new Date();
 
-          // Count weekdays between two dates (excludes Saturday and Sunday)
+          // Timezone helpers using Intl.DateTimeFormat
+          function getPartsInTimezone(date, tz) {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+              timeZone: tz,
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false,
+              weekday: 'short'
+            });
+            const parts = {};
+            for (const { type, value } of formatter.formatToParts(date)) {
+              parts[type] = value;
+            }
+            return parts;
+          }
+
+          function getDayInTimezone(date, tz) {
+            const parts = getPartsInTimezone(date, tz);
+            const days = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+            return days[parts.weekday];
+          }
+
+          function getHourInTimezone(date, tz) {
+            const parts = getPartsInTimezone(date, tz);
+            return parseInt(parts.hour);
+          }
+
+          function getMinuteInTimezone(date, tz) {
+            const parts = getPartsInTimezone(date, tz);
+            return parseInt(parts.minute);
+          }
+
+          // Get UTC timestamp for a specific hour on the same calendar day in timezone
+          function getTimeInTimezone(date, tz, hour, minute = 0) {
+            const parts = getPartsInTimezone(date, tz);
+            const dateStr = `${parts.year}-${parts.month}-${parts.day}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+            // Parse as if in target timezone by finding the offset
+            const tempDate = new Date(dateStr + 'Z');
+            const tempParts = getPartsInTimezone(tempDate, tz);
+            const tempHour = parseInt(tempParts.hour);
+            const tempMinute = parseInt(tempParts.minute);
+            const offsetMs = ((tempHour - hour) * 60 + (tempMinute - minute)) * 60 * 1000;
+            return new Date(tempDate.getTime() - offsetMs);
+          }
+
+          // Get next midnight in timezone
+          function getNextMidnightInTimezone(date, tz) {
+            const parts = getPartsInTimezone(date, tz);
+            const nextDay = new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00Z`);
+            nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+            return getTimeInTimezone(nextDay, tz, 0, 0);
+          }
+
+          // Count working days between two dates (excludes weekends and non-working hours)
           // O(1) implementation with fractional day support
-          function countWeekdays(startDate, endDate) {
+          function countWorkingDays(startDate, endDate) {
             const start = new Date(startDate);
             const end = new Date(endDate);
-            const msPerDay = 1000 * 60 * 60 * 24;
 
             if (end <= start) return 0;
 
-            const totalDays = (end - start) / msPerDay;
+            const msPerHour = 1000 * 60 * 60;
+            const msPerDay = msPerHour * 24;
+            const workHoursPerDay = workDayEnd - workDayStart;
+
+            // Helper: get working ms for a single day given time range
+            function getWorkingMsForDay(dayStart, dayEnd) {
+              const dayOfWeek = getDayInTimezone(dayStart, timezone);
+              if (dayOfWeek === 0 || dayOfWeek === 6) return 0; // Weekend
+
+              const workStart = getTimeInTimezone(dayStart, timezone, workDayStart);
+              const workEnd = getTimeInTimezone(dayStart, timezone, workDayEnd);
+
+              const overlapStart = Math.max(dayStart.getTime(), workStart.getTime());
+              const overlapEnd = Math.min(dayEnd.getTime(), workEnd.getTime());
+
+              return Math.max(0, overlapEnd - overlapStart);
+            }
+
+            // Step 1: Full weeks (O(1))
+            const totalMs = end - start;
+            const totalDays = totalMs / msPerDay;
             const fullWeeks = Math.floor(totalDays / 7);
-            const weekendDaysFromFullWeeks = fullWeeks * 2;
+            const workingMsPerWeek = 5 * workHoursPerDay * msPerHour;
+            let totalWorkingMs = fullWeeks * workingMsPerWeek;
 
-            // Find first Saturday 00:00 after start
-            const startDay = start.getDay();
-            const daysUntilSat = (6 - startDay + 7) % 7;
-            const firstSat = new Date(start);
-            firstSat.setHours(0, 0, 0, 0);
-            firstSat.setDate(firstSat.getDate() + daysUntilSat);
-
-            // Find first Monday 00:00 after start
-            const daysUntilMon = (8 - startDay) % 7;
-            const firstMon = new Date(start);
-            firstMon.setHours(0, 0, 0, 0);
-            firstMon.setDate(firstMon.getDate() + daysUntilMon);
-
-            // Calculate weekend overlap in the remainder (after full weeks)
+            // Step 2: Remainder days (max 7 iterations = O(1))
             const remainderStart = new Date(start.getTime() + fullWeeks * 7 * msPerDay);
-            const remainderEnd = end;
+            let current = new Date(remainderStart);
 
-            // Shift to find weekend boundaries relative to remainder
-            const remStartDay = remainderStart.getDay();
-            const remDaysUntilSat = (6 - remStartDay + 7) % 7;
-            const remFirstSat = new Date(remainderStart);
-            remFirstSat.setHours(0, 0, 0, 0);
-            remFirstSat.setDate(remFirstSat.getDate() + remDaysUntilSat);
+            while (current < end) {
+              const nextMidnight = getNextMidnightInTimezone(current, timezone);
+              const dayEnd = nextMidnight < end ? nextMidnight : end;
 
-            const remDaysUntilMon = (8 - remStartDay) % 7;
-            const remFirstMon = new Date(remainderStart);
-            remFirstMon.setHours(0, 0, 0, 0);
-            remFirstMon.setDate(remFirstMon.getDate() + remDaysUntilMon);
-
-            let weekendInRemainder = 0;
-
-            // Saturday overlap
-            if (remFirstSat < remainderEnd) {
-              const satStart = remFirstSat > remainderStart ? remFirstSat : remainderStart;
-              const satEnd = new Date(remFirstSat.getTime() + msPerDay);
-              if (satStart < remainderEnd) {
-                weekendInRemainder += (Math.min(satEnd, remainderEnd) - satStart) / msPerDay;
-              }
+              totalWorkingMs += getWorkingMsForDay(current, dayEnd);
+              current = nextMidnight;
             }
 
-            // Sunday overlap
-            const remFirstSun = new Date(remFirstSat.getTime() + msPerDay);
-            if (remFirstSun < remainderEnd) {
-              const sunStart = remFirstSun > remainderStart ? remFirstSun : remainderStart;
-              const sunEnd = new Date(remFirstSun.getTime() + msPerDay);
-              if (sunStart < remainderEnd) {
-                weekendInRemainder += (Math.min(sunEnd, remainderEnd) - sunStart) / msPerDay;
-              }
-            }
-
-            return totalDays - weekendDaysFromFullWeeks - weekendInRemainder;
+            // Return as fraction of working days
+            return totalWorkingMs / (workHoursPerDay * msPerHour);
           }
 
           for (const issueNumber of issueNumbers) {
@@ -233,7 +288,7 @@ runs:
               }
 
               const startDate = new Date(startedAt);
-              const cycleTime = parseFloat(countWeekdays(startDate, today).toFixed(2));
+              const cycleTime = parseFloat(countWorkingDays(startDate, today).toFixed(2));
 
               // Update Cycle Time field
               const mutation = `

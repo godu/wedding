@@ -84,3 +84,4 @@ jobs:
           project-token: ${{ secrets.PROJECT_TOKEN }}
           project-number: ${{ vars.PROJECT_NUMBER }}
           issues: ${{ steps.compute.outputs.issues }}
+          timezone: Europe/Luxembourg
