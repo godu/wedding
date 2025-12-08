@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: Staging
-      url: ${{ steps.deploy.outputs.url }}
+      # url: ${{ steps.deploy.outputs.url }}
     timeout-minutes: 10
     steps:
       - name: Checkout source 📡
@@ -60,36 +60,40 @@ jobs:
           name: dist
           path: dist
 
-      - name: Configure AWS Credentials 🔑
-        uses: aws-actions/configure-aws-credentials@v5.1.1
-        with:
-          aws-region: ${{ secrets.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      # - name: Configure AWS Credentials 🔑
+      #   uses: aws-actions/configure-aws-credentials@v5.1.1
+      #   with:
+      #     aws-region: ${{ secrets.AWS_REGION }}
+      #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
-      - name: Setup Node.js 📦
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: package.json
-          cache: "npm"
+      # - name: Setup Node.js 📦
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version-file: package.json
+      #     cache: "npm"
 
-      - name: Install infrastructure dependencies 📥
-        run: npm ci
-        working-directory: infrastructure
+      # - name: Install infrastructure dependencies 📥
+      #   run: npm ci
+      #   working-directory: infrastructure
+
+      # - name: Deploy to Staging 🚀
+      #   id: deploy
+      #   uses: pulumi/actions@v5
+      #   with:
+      #     command: up
+      #     cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
+      #     stack-name: staging
+      #     work-dir: infrastructure
+      #   env:
+      #     PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+      # - name: Invalidate Staging CloudFront cache 🌩️
+      #   run: |
+      #     aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
       - name: Deploy to Staging 🚀
         id: deploy
-        uses: pulumi/actions@v5
-        with:
-          command: up
-          cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
-          stack-name: staging
-          work-dir: infrastructure
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
-      - name: Invalidate Staging CloudFront cache 🌩️
-        run: |
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+        run: echo "Deployed to Staging (skipped for testing)"
 
       - name: Compute issues to deploy 📊
         id: compute
@@ -113,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: Production
-      url: ${{ steps.deploy.outputs.url }}
+      # url: ${{ steps.deploy.outputs.url }}
     timeout-minutes: 10
     steps:
       - name: Checkout source 📡
@@ -125,36 +129,40 @@ jobs:
           name: dist
           path: dist
 
-      - name: Configure AWS Credentials 🔑
-        uses: aws-actions/configure-aws-credentials@v5.1.1
-        with:
-          aws-region: ${{ secrets.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      # - name: Configure AWS Credentials 🔑
+      #   uses: aws-actions/configure-aws-credentials@v5.1.1
+      #   with:
+      #     aws-region: ${{ secrets.AWS_REGION }}
+      #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
-      - name: Setup Node.js 📦
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: package.json
-          cache: "npm"
+      # - name: Setup Node.js 📦
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version-file: package.json
+      #     cache: "npm"
 
-      - name: Install infrastructure dependencies 📥
-        run: npm ci
-        working-directory: infrastructure
+      # - name: Install infrastructure dependencies 📥
+      #   run: npm ci
+      #   working-directory: infrastructure
+
+      # - name: Deploy to Production 🚀
+      #   id: deploy
+      #   uses: pulumi/actions@v5
+      #   with:
+      #     command: up
+      #     cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
+      #     stack-name: production
+      #     work-dir: infrastructure
+      #   env:
+      #     PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+      # - name: Invalidate Production CloudFront cache 🌩️
+      #   run: |
+      #     aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
       - name: Deploy to Production 🚀
         id: deploy
-        uses: pulumi/actions@v5
-        with:
-          command: up
-          cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
-          stack-name: production
-          work-dir: infrastructure
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
-      - name: Invalidate Production CloudFront cache 🌩️
-        run: |
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+        run: echo "Deployed to Production (skipped for testing)"
 
       - name: Compute issues to deploy 📊
         id: compute
