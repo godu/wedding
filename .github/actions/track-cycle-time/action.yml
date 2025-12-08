@@ -91,6 +91,72 @@ runs:
 
           const today = new Date();
 
+          // Count weekdays between two dates (excludes Saturday and Sunday)
+          // O(1) implementation with fractional day support
+          function countWeekdays(startDate, endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const msPerDay = 1000 * 60 * 60 * 24;
+
+            if (end <= start) return 0;
+
+            const totalDays = (end - start) / msPerDay;
+            const fullWeeks = Math.floor(totalDays / 7);
+            const weekendDaysFromFullWeeks = fullWeeks * 2;
+
+            // Find first Saturday 00:00 after start
+            const startDay = start.getDay();
+            const daysUntilSat = (6 - startDay + 7) % 7;
+            const firstSat = new Date(start);
+            firstSat.setHours(0, 0, 0, 0);
+            firstSat.setDate(firstSat.getDate() + daysUntilSat);
+
+            // Find first Monday 00:00 after start
+            const daysUntilMon = (8 - startDay) % 7;
+            const firstMon = new Date(start);
+            firstMon.setHours(0, 0, 0, 0);
+            firstMon.setDate(firstMon.getDate() + daysUntilMon);
+
+            // Calculate weekend overlap in the remainder (after full weeks)
+            const remainderStart = new Date(start.getTime() + fullWeeks * 7 * msPerDay);
+            const remainderEnd = end;
+
+            // Shift to find weekend boundaries relative to remainder
+            const remStartDay = remainderStart.getDay();
+            const remDaysUntilSat = (6 - remStartDay + 7) % 7;
+            const remFirstSat = new Date(remainderStart);
+            remFirstSat.setHours(0, 0, 0, 0);
+            remFirstSat.setDate(remFirstSat.getDate() + remDaysUntilSat);
+
+            const remDaysUntilMon = (8 - remStartDay) % 7;
+            const remFirstMon = new Date(remainderStart);
+            remFirstMon.setHours(0, 0, 0, 0);
+            remFirstMon.setDate(remFirstMon.getDate() + remDaysUntilMon);
+
+            let weekendInRemainder = 0;
+
+            // Saturday overlap
+            if (remFirstSat < remainderEnd) {
+              const satStart = remFirstSat > remainderStart ? remFirstSat : remainderStart;
+              const satEnd = new Date(remFirstSat.getTime() + msPerDay);
+              if (satStart < remainderEnd) {
+                weekendInRemainder += (Math.min(satEnd, remainderEnd) - satStart) / msPerDay;
+              }
+            }
+
+            // Sunday overlap
+            const remFirstSun = new Date(remFirstSat.getTime() + msPerDay);
+            if (remFirstSun < remainderEnd) {
+              const sunStart = remFirstSun > remainderStart ? remFirstSun : remainderStart;
+              const sunEnd = new Date(remFirstSun.getTime() + msPerDay);
+              if (sunStart < remainderEnd) {
+                weekendInRemainder += (Math.min(sunEnd, remainderEnd) - sunStart) / msPerDay;
+              }
+            }
+
+            return totalDays - weekendDaysFromFullWeeks - weekendInRemainder;
+          }
+
           for (const issueNumber of issueNumbers) {
             try {
               // Get issue's project item and timeline
@@ -167,7 +233,7 @@ runs:
               }
 
               const startDate = new Date(startedAt);
-              const cycleTime = Math.round((today - startDate) / (1000 * 60 * 60 * 24) * 100) / 100;
+              const cycleTime = parseFloat(countWeekdays(startDate, today).toFixed(2));
 
               // Update Cycle Time field
               const mutation = `
