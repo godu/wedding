@@ -1,0 +1,74 @@
+name: Rollback Production 🔙
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+  deployments: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit-sha:
+        description: "Commit SHA to rollback to"
+        required: true
+        type: string
+
+jobs:
+  Rollback:
+    runs-on: ubuntu-latest
+    environment: Production
+    timeout-minutes: 15
+    concurrency:
+      group: deployment-production
+      cancel-in-progress: false
+    steps:
+      - name: Checkout source at rollback commit 📡
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit-sha }}
+
+      - name: Setup Node.js 📦
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: "npm"
+
+      - name: Install dependencies 📥
+        run: npm ci --omit=dev
+
+      - name: Build 🧑‍🏭
+        run: npm run build
+
+      - name: Configure AWS Credentials 🔑
+        uses: aws-actions/configure-aws-credentials@v5.1.1
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+
+      - name: Install infrastructure dependencies 📥
+        run: npm ci
+        working-directory: infrastructure
+
+      - name: Deploy to Production 🚀
+        id: deploy
+        uses: pulumi/actions@v5
+        with:
+          command: up
+          cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
+          stack-name: production
+          work-dir: infrastructure
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+      - name: Invalidate Production CloudFront cache 🌩️
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+      - name: Summary 📝
+        run: |
+          echo "## Rollback Complete 🔙" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Rolled back to:** \`${{ inputs.commit-sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY

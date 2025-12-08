@@ -1,0 +1,138 @@
+name: Label Issues
+description: Adds a label to issues and optionally moves them to a status
+
+inputs:
+  github-token:
+    description: 'GitHub token with repo and project permissions'
+    required: true
+  project-number:
+    description: 'GitHub Project number'
+    required: true
+  issues:
+    description: 'JSON array of issue numbers'
+    required: true
+  label:
+    description: 'Label to add (e.g., deployed:staging)'
+    required: true
+  done-status:
+    description: 'Status column for completed issues'
+    required: false
+    default: 'Done'
+
+runs:
+  using: composite
+  steps:
+    - name: Label issues and move to Done 🏷️
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const issuesInput = '${{ inputs.issues }}';
+          const label = '${{ inputs.label }}';
+          const doneStatus = '${{ inputs.done-status }}';
+          const projectNumber = parseInt('${{ inputs.project-number }}');
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+
+          const issueNumbers = JSON.parse(issuesInput);
+
+          if (issueNumbers.length === 0) {
+            console.log('No issues to label');
+            return;
+          }
+
+          console.log(`Issues to label with "${label}": ${issueNumbers.join(', ')}`);
+
+          // Get project and Done status option
+          const projectQuery = `
+            query($owner: String!, $number: Int!) {
+              user(login: $owner) {
+                projectV2(number: $number) {
+                  id
+                  field(name: "Status") {
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      options { id name }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          const projectData = await github.graphql(projectQuery, { owner, number: projectNumber });
+          const project = projectData.user.projectV2;
+          const statusField = project.field;
+          const doneOption = statusField?.options?.find(o => o.name === doneStatus);
+
+          if (!doneOption) {
+            console.log(`Warning: "${doneStatus}" status not found in project`);
+          }
+
+          for (const issueNumber of issueNumbers) {
+            try {
+              // 1. Add label to issue
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                labels: [label]
+              });
+              console.log(`Added label "${label}" to issue #${issueNumber}`);
+
+              // 2. Move to Done status in project (if status field exists)
+              if (doneOption) {
+                const issueQuery = `
+                  query($owner: String!, $repo: String!, $number: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      issue(number: $number) {
+                        projectItems(first: 10) {
+                          nodes {
+                            id
+                            project { id }
+                          }
+                        }
+                      }
+                    }
+                  }
+                `;
+
+                const issueData = await github.graphql(issueQuery, {
+                  owner,
+                  repo,
+                  number: issueNumber
+                });
+
+                const projectItem = issueData.repository.issue?.projectItems?.nodes
+                  ?.find(item => item.project.id === project.id);
+
+                if (projectItem) {
+                  const mutation = `
+                    mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                      updateProjectV2ItemFieldValue(input: {
+                        projectId: $projectId
+                        itemId: $itemId
+                        fieldId: $fieldId
+                        value: { singleSelectOptionId: $optionId }
+                      }) {
+                        projectV2Item { id }
+                      }
+                    }
+                  `;
+
+                  await github.graphql(mutation, {
+                    projectId: project.id,
+                    itemId: projectItem.id,
+                    fieldId: statusField.id,
+                    optionId: doneOption.id
+                  });
+                  console.log(`Moved issue #${issueNumber} to ${doneStatus}`);
+                } else {
+                  console.log(`Issue #${issueNumber} is not in the project`);
+                }
+              }
+
+            } catch (error) {
+              console.log(`Failed to process issue #${issueNumber}: ${error.message}`);
+            }
+          }

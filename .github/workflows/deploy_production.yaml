@@ -1,4 +1,4 @@
-name: Continuous Deployment 🚀
+name: Deploy Production 🚀
 
 permissions:
   id-token: write
@@ -6,16 +6,18 @@ permissions:
   issues: write
 
 on:
-  push:
-    branches:
-      - master
-  schedule:
-    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 jobs:
-  Build:
+  Production:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    environment:
+      name: Production
+      # url: ${{ steps.deploy.outputs.url }}
+    concurrency:
+      group: deployment-production
+      cancel-in-progress: false
+    timeout-minutes: 15
     steps:
       - name: Checkout source 📡
         uses: actions/checkout@v4
@@ -32,81 +34,53 @@ jobs:
       - name: Build 🧑‍🏭
         run: npm run build
 
-      - name: Upload build artifact 📤
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist
-          retention-days: 1
-
-  Staging:
-    needs: Build
-    runs-on: ubuntu-latest
-    environment:
-      name: Staging
-      # url: ${{ steps.deploy.outputs.url }}
-    timeout-minutes: 15
-    concurrency:
-      group: deployment-staging
-      cancel-in-progress: false
-    steps:
-      - name: Checkout source 📡
-        uses: actions/checkout@v4
-
-      - name: Download build artifact 📥
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-
       # - name: Configure AWS Credentials 🔑
       #   uses: aws-actions/configure-aws-credentials@v5.1.1
       #   with:
       #     aws-region: ${{ secrets.AWS_REGION }}
       #     role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
-      # - name: Setup Node.js 📦
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version-file: package.json
-      #     cache: "npm"
-
       # - name: Install infrastructure dependencies 📥
       #   run: npm ci
       #   working-directory: infrastructure
 
-      # - name: Deploy to Staging 🚀
+      # - name: Deploy to Production 🚀
       #   id: deploy
       #   uses: pulumi/actions@v5
       #   with:
       #     command: up
       #     cloud-url: ${{ secrets.PULUMI_BACKEND_URL }}
-      #     stack-name: staging
+      #     stack-name: production
       #     work-dir: infrastructure
       #   env:
       #     PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
-      # - name: Invalidate Staging CloudFront cache 🌩️
+      # - name: Invalidate Production CloudFront cache 🌩️
       #   run: |
       #     aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
-      - name: Deploy to Staging 🚀
+      - name: Deploy to Production 🚀
         id: deploy
-        run: echo "Deployed to Staging (skipped for testing)"
+        run: echo "Deployed to Production (skipped for testing)"
 
       - name: Compute issues to deploy 📊
         id: compute
-        if: github.event_name == 'push'
         uses: ./.github/actions/issues-since-deployment
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          environment: Staging
+          environment: Production
 
-      - name: Label issues as deployed to staging 🏷️
-        if: github.event_name == 'push'
+      - name: Label issues as deployed to production 🏷️
         uses: ./.github/actions/label-issues
         with:
           github-token: ${{ secrets.PROJECT_TOKEN }}
           project-number: ${{ vars.PROJECT_NUMBER }}
           issues: ${{ steps.compute.outputs.issues }}
-          label: deployed:staging
+          label: deployed:production
+
+      - name: Track cycle time ⏱️
+        uses: ./.github/actions/track-cycle-time
+        with:
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
+          issues: ${{ steps.compute.outputs.issues }}

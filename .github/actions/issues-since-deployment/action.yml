@@ -1,0 +1,108 @@
+name: Issues Since Deployment
+description: Gathers issues from commits since last deployment for an environment
+
+inputs:
+  github-token:
+    description: 'GitHub token with repo access'
+    required: true
+  environment:
+    description: 'Environment name (staging/production)'
+    required: true
+
+outputs:
+  issues:
+    description: 'JSON array of issue numbers to deploy'
+    value: ${{ steps.compute.outputs.issues }}
+
+runs:
+  using: composite
+  steps:
+    - name: Compute issues to deploy 📊
+      id: compute
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const environment = '${{ inputs.environment }}';
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const currentSha = context.sha;
+
+          console.log(`Environment: ${environment}`);
+          console.log(`Current SHA: ${currentSha}`);
+
+          // 1. Get last successful deployment for this environment
+          const deploymentsQuery = `
+            query($owner: String!, $repo: String!, $env: [String!]) {
+              repository(owner: $owner, name: $repo) {
+                deployments(environments: $env, first: 10, orderBy: {field: CREATED_AT, direction: DESC}) {
+                  nodes {
+                    commitOid
+                    state
+                    createdAt
+                  }
+                }
+              }
+            }
+          `;
+
+          const deploymentsData = await github.graphql(deploymentsQuery, {
+            owner,
+            repo,
+            env: [environment]
+          });
+
+          const deployments = deploymentsData.repository.deployments.nodes;
+
+          // Find last successful deployment (not the current one)
+          const lastDeployment = deployments.find(d =>
+            d.state === 'ACTIVE' && d.commitOid !== currentSha
+          );
+
+          let baseSha = null;
+          if (lastDeployment) {
+            baseSha = lastDeployment.commitOid;
+            console.log(`Last deployment SHA: ${baseSha} (${lastDeployment.createdAt})`);
+          } else {
+            console.log('No previous deployment found, will use all commits from push event');
+          }
+
+          // 2. Get commits in range
+          const issueNumbers = new Set();
+          const pattern = /(?:fix|fixes|fixed|close|closes|closed|resolve|resolves|resolved)\s*#(\d+)/gi;
+
+          if (baseSha) {
+            // Get commits between last deployment and current
+            const compareData = await github.rest.repos.compareCommits({
+              owner,
+              repo,
+              base: baseSha,
+              head: currentSha
+            });
+
+            console.log(`Commits since last deployment: ${compareData.data.commits.length}`);
+
+            for (const commit of compareData.data.commits) {
+              let match;
+              while ((match = pattern.exec(commit.commit.message)) !== null) {
+                issueNumbers.add(parseInt(match[1]));
+              }
+            }
+          } else {
+            // Fallback: use commits from push event
+            const commits = context.payload.commits || [];
+            console.log(`Commits from push event: ${commits.length}`);
+
+            for (const commit of commits) {
+              let match;
+              while ((match = pattern.exec(commit.message)) !== null) {
+                issueNumbers.add(parseInt(match[1]));
+              }
+            }
+          }
+
+          // 3. Output results
+          const issueArray = [...issueNumbers];
+          console.log(`Issues to deploy: ${issueArray.join(', ') || 'none'}`);
+
+          core.setOutput('issues', JSON.stringify(issueArray));
