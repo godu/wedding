@@ -1,0 +1,103 @@
+name: Update Done Issues 📋
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  UpdateDoneIssues:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source 📡
+        uses: actions/checkout@v4
+
+      - name: Find recently closed issues 🔍
+        id: find
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const projectNumber = parseInt('${{ vars.PROJECT_NUMBER }}');
+            const cycleTimeFieldName = 'Cycle Time';
+            const iterationFieldName = 'Iteration';
+
+            // Get all project items
+            const query = `
+              query($owner: String!, $number: Int!, $cycleTimeFieldName: String!, $iterationFieldName: String!) {
+                user(login: $owner) {
+                  projectV2(number: $number) {
+                    items(first: 100) {
+                      nodes {
+                        content {
+                          ... on Issue {
+                            number
+                            state
+                            closedAt
+                          }
+                        }
+                        cycleTime: fieldValueByName(name: $cycleTimeFieldName) {
+                          ... on ProjectV2ItemFieldNumberValue {
+                            number
+                          }
+                        }
+                        iteration: fieldValueByName(name: $iterationFieldName) {
+                          ... on ProjectV2ItemFieldIterationValue {
+                            iterationId
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const data = await github.graphql(query, { owner, number: projectNumber, cycleTimeFieldName, iterationFieldName });
+            const items = data.user.projectV2.items.nodes;
+
+            // Filter: closed issues in last 7 days
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            const recentlyClosedItems = items.filter(item => {
+              const content = item.content;
+              if (!content || !content.number) return false;
+              if (content.state !== 'CLOSED') return false;
+              if (!content.closedAt) return false;
+              return new Date(content.closedAt) >= sevenDaysAgo;
+            });
+
+            // Issues without cycle time
+            const issuesWithoutCycleTime = recentlyClosedItems
+              .filter(item => item.cycleTime?.number === undefined)
+              .map(item => item.content.number);
+
+            // Issues without iteration
+            const issuesWithoutIteration = recentlyClosedItems
+              .filter(item => !item.iteration?.iterationId)
+              .map(item => item.content.number);
+
+            console.log(`Found ${issuesWithoutCycleTime.length} issues without cycle time: ${issuesWithoutCycleTime.join(', ') || 'none'}`);
+            console.log(`Found ${issuesWithoutIteration.length} issues without iteration: ${issuesWithoutIteration.join(', ') || 'none'}`);
+
+            core.setOutput('issues_without_cycle_time', JSON.stringify(issuesWithoutCycleTime));
+            core.setOutput('issues_without_iteration', JSON.stringify(issuesWithoutIteration));
+
+      - name: Track cycle time ⏱️
+        if: steps.find.outputs.issues_without_cycle_time != '[]'
+        uses: ./.github/actions/track-cycle-time
+        with:
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
+          issues: ${{ steps.find.outputs.issues_without_cycle_time }}
+          timezone: Europe/Luxembourg
+
+      - name: Assign iteration 📅
+        if: steps.find.outputs.issues_without_iteration != '[]'
+        uses: ./.github/actions/assign-iteration
+        with:
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
+          issues: ${{ steps.find.outputs.issues_without_iteration }}

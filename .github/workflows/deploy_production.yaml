@@ -85,3 +85,10 @@ jobs:
           project-number: ${{ vars.PROJECT_NUMBER }}
           issues: ${{ steps.compute.outputs.issues }}
           timezone: Europe/Luxembourg
+
+      - name: Assign iteration 📅
+        uses: ./.github/actions/assign-iteration
+        with:
+          project-token: ${{ secrets.PROJECT_TOKEN }}
+          project-number: ${{ vars.PROJECT_NUMBER }}
+          issues: ${{ steps.compute.outputs.issues }}

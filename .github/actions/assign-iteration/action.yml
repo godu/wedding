@@ -1,0 +1,160 @@
+name: Assign Iteration
+description: Assigns the current iteration to specified issues
+
+inputs:
+  project-token:
+    description: 'GitHub token with project permissions'
+    required: true
+  project-number:
+    description: 'GitHub Project number'
+    required: true
+  issues:
+    description: 'JSON array of issue numbers'
+    required: false
+    default: ''
+  iteration-field:
+    description: 'Name of the Iteration field'
+    required: false
+    default: 'Iteration'
+
+runs:
+  using: composite
+  steps:
+    - name: Assign iteration 📅
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.project-token }}
+        script: |
+          const projectNumber = parseInt('${{ inputs.project-number }}');
+          const issuesInput = '${{ inputs.issues }}';
+          const iterationFieldName = '${{ inputs.iteration-field }}';
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+
+          // Parse issues
+          const issueNumbers = issuesInput ? JSON.parse(issuesInput) : [];
+
+          if (issueNumbers.length === 0) {
+            console.log('No issues to assign iteration');
+            return;
+          }
+
+          console.log(`Issues to assign iteration: ${issueNumbers.join(', ')}`);
+
+          // Get project and iteration field
+          const projectQuery = `
+            query($owner: String!, $number: Int!, $iterationFieldName: String!) {
+              user(login: $owner) {
+                projectV2(number: $number) {
+                  id
+                  iterationField: field(name: $iterationFieldName) {
+                    ... on ProjectV2IterationField {
+                      id
+                      configuration {
+                        iterations {
+                          id
+                          title
+                          startDate
+                          duration
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          const projectData = await github.graphql(projectQuery, { owner, number: projectNumber, iterationFieldName });
+          const project = projectData.user.projectV2;
+          const iterationField = project.iterationField;
+
+          if (!iterationField) {
+            console.log(`"${iterationFieldName}" field not found in project. Please create an Iteration field.`);
+            return;
+          }
+
+          // Find current iteration (today falls within startDate and startDate + duration)
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const currentIteration = iterationField.configuration.iterations.find(iter => {
+            const startDate = new Date(iter.startDate);
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + iter.duration);
+            return today >= startDate && today < endDate;
+          });
+
+          if (!currentIteration) {
+            console.log('No current iteration found for today');
+            return;
+          }
+
+          console.log(`Current iteration: ${currentIteration.title} (${currentIteration.startDate})`);
+
+          for (const issueNumber of issueNumbers) {
+            try {
+              // Get issue's project item and current iteration value
+              const issueQuery = `
+                query($owner: String!, $repo: String!, $number: Int!, $iterationFieldName: String!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $number) {
+                      projectItems(first: 10) {
+                        nodes {
+                          id
+                          project { id }
+                          iteration: fieldValueByName(name: $iterationFieldName) {
+                            ... on ProjectV2ItemFieldIterationValue {
+                              iterationId
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const issueData = await github.graphql(issueQuery, { owner, repo, number: issueNumber, iterationFieldName });
+              const issue = issueData.repository.issue;
+
+              const projectItem = issue.projectItems.nodes.find(item => item.project.id === project.id);
+
+              if (!projectItem) {
+                console.log(`Issue #${issueNumber} is not in the project`);
+                continue;
+              }
+
+              // Skip if iteration already set
+              if (projectItem.iteration?.iterationId) {
+                console.log(`Issue #${issueNumber} already has an iteration assigned`);
+                continue;
+              }
+
+              // Assign current iteration
+              const mutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: { iterationId: $iterationId }
+                  }) {
+                    projectV2Item { id }
+                  }
+                }
+              `;
+
+              await github.graphql(mutation, {
+                projectId: project.id,
+                itemId: projectItem.id,
+                fieldId: iterationField.id,
+                iterationId: currentIteration.id
+              });
+
+              console.log(`Issue #${issueNumber}: Assigned to iteration "${currentIteration.title}"`);
+
+            } catch (error) {
+              console.log(`Failed to assign iteration to issue #${issueNumber}: ${error.message}`);
+            }
+          }
